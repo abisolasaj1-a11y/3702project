@@ -4,7 +4,7 @@ Abisola Sajuyigbe
 
 ## Introduction
 
-This project, devised from an interest in financial risk assessments, will explore New York City's Property Valuation and Assessment Data. This chapter displays the exploratory data analysis and visualization of the City's financial evaluations that determine tax revenues. Property assessments determine tax revenues, this identifying gaps between assessed property value and its market value is an important fiscal concern.
+This project, inspired by an interest in financial risk assessments, will explore New York City's Property Valuation and Assessment Data. This chapter displays the exploratory data analysis and visualization of the City's financial evaluations that determine tax revenues. Since property assessments determine tax revenues, identifying gaps between assessed property value and its market value is an important fiscal concern.
 
 This project's goal is to encourage financial data transparency by generating accessible and easy to understand visualizations that encourage public engagement with the city's finances and property valuation. A better New York is one with more informed stakeholders!
 
@@ -25,24 +25,22 @@ This chapter will engage with the following key questions:
 library(tidyverse)
 
 # -------------------------------SAMPLING----------------------------------
-# 1. Define the Base API URL for NYC Property Valuation
+# Base API URL
 base_url <- "https://data.cityofnewyork.us/resource/yjxr-fw8i.csv"
 
-# 2. Construct specific queries for each borough (1-5)
-# Using $limit=10000 ensures a robust citywide sample of 50,000 rows
+# Queries for each borough
 boro_queries <- paste0(base_url, "?$where=boro='", 1:5, "'&$limit=10000")
 
-# 3. Pull the data and fix the type mismatch error
-# Explicitly setting col_types prevents read_csv from guessing 'bble' incorrectly
+# Pull the data and fix the variable type mistmatches
 PVA_stratified <- map_df(boro_queries, ~read_csv(.x, col_types = cols(
-  bble = col_character(),      # Forces BBLE to character to accommodate easement letters
-  boro = col_character(),      # Forces Borough to character for consistent binding
-  taxclass = col_character(),  # Forces Tax Class to character (e.g., '1A', '2B')
-  zip = col_character(),       # Recommended: forces Zip to character to keep leading zeros
-  .default = col_guess()       # Allows R to guess the rest (usually numeric values)
+  bble = col_character(),   
+  boro = col_character(),
+  taxclass = col_character(),
+  zip = col_character(),
+  .default = col_guess() 
 )))
 
-# 4. Verify the distribution and column types
+# Check distribution and column types
 print(dim(PVA_stratified))
 PVA_stratified %>% count(boro)
 
@@ -94,9 +92,9 @@ str(PVA_tidy)
 
 ### Description
 
-The data used in this study is the NYC Property Valuation and Assessment Data, collected by the City government's Department of Finance (DoF), and sourced from [NYC Open Data](https://data.cityofnewyork.us/City-Government/Property-Valuation-and-Assessment-Data/yjxr-fw8i/about_data). It contains property valuation and assessment data for 9.85 million New York City properties, with a collection of 40 variables.
+The data used in this study is the NYC Property Valuation and Assessment Data, collected by the City government's Department of Finance (DoF), and sourced from [NYC Open Data](https://data.cityofnewyork.us/City-Government/Property-Valuation-and-Assessment-Data/yjxr-fw8i/about_data). It contains property valuation and assessment data for 9.85 million New York City properties, with a collection of 40 variables. The dataset is classified by NYC Open Data as historical, and it is not subject to automated updates.
 
-The initial data export using an API endpoint was limited to 1,000 rows or observations. This form of data extraction created a sampling error, as only observations from the first three listed boroughs were included. To ensure the dataset used for analysis is representative of the city, this report uses a stratified sample of 50,000 observations exported via a `SODA2 API` endpoint in `CSV` format, ensuring the most up-to-date figures. This sampling method pulled in data from five distinct batches, one for each borough, using a limit of 10,000 rows per batch. These batches were then aggregated into a comprehensive and balanced dataset of 50,000 rows.
+The initial data export using an API endpoint was limited to 1,000 rows or observations. This form of data extraction created a sampling error, as only observations from the first three listed boroughs were included in the extraction. To ensure the dataset used for analysis is representative of the city, this report uses a stratified sample of 50,000 observations exported via a `SODA2 API` endpoint in `CSV` format, ensuring the most up-to-date figures. This sampling method pulled in data from five distinct batches, one for each borough, using a limit of 10,000 rows per batch. These batches were then aggregated into a comprehensive and balanced dataset of 50,000 rows.
 
 The research conducted in this chapter is targeted, using a "tidied" version of the originally sourced dataset, containing the following variables:
 
@@ -169,12 +167,16 @@ colSums(is.na(PVA_tidy)) %>%
   sort(decreasing = TRUE)
 
 # Figure 1. Visualize Aggregated Missing Pattern Plot
-plot_missing(PVA_tidy, percent = FALSE) +
-  theme_classic() +
+library(patchwork)
+plot_missing(PVA_tidy, percent = FALSE) &
+  theme_classic() &
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 8)
+  ) +
   labs(caption = "Figure 1.")
 ```
 
-Figure 1. The Aggregated Missing Pattern Plot indicates that the `exmptcl` variable is the source of missing values in my tidied dataset. 47914 rows of this variable are missing. All the other variables are complete. The missing pattern in the `exmptcl` variable is logical and a reflection of NYC property taxes. Most of the properties are likely missing a value for `exmptcl` because most properties do not qualify for a government or non-profit tax break.
+**Figure 1.** The Aggregated Missing Pattern Plot indicates that the `exmptcl` and `exmpt_code` variables are the primary sources of missing values in the tidied dataset. Approximately 47,914 rows are missing for these variables, while all other variables remain complete. This missingness pattern is logical and reflective of New York City property tax structures because many properties do not qualify for government or non-profit exemptions. Therefore, they correctly lack a corresponding exemption classification code.
 
 ```{r}
 # Figure 2. Missingness by Borough and Property Type
@@ -195,7 +197,7 @@ ggplot(missing_data,
        caption = "Figure 2.")
 ```
 
-Figure 2. The Missingness by Borough and Property Type Plot indicates that Commercial & All Other properties have the lowest amount of missing data (roughly 80-85%), suggesting that these commercial properties have more recorded tax breaks than residential properties across all five boroughs. Besides that, Manhattan's Single-Family Home bar is missing, reflecting the reality that there are not many existing single family homes in Manhattan.
+**Figure 2**. The Missingness by Borough and Property Type Plot indicates that Commercial & All Other properties have the lowest amount of missing data (roughly 80-85%), suggesting that these commercial properties have more recorded tax breaks than residential properties across all five boroughs. Besides that, Manhattan's Single-Family Home bar is missing, reflecting the reality that there are not many single family homes in Manhattan.
 
 ## Results
 
@@ -205,9 +207,10 @@ Figure 2. The Missingness by Borough and Property Type Plot indicates that Comme
 library(scales)
 library(ggridges)
   
-# Figure 3. Scatterplot
+# Figure 3. 2D Density Plot
 ggplot(PVA_tidy, aes(x = extot, y = fullval)) +
-  geom_jitter(alpha = 0.2, color = "blue3") +
+  geom_bin2d(bins = 100) + 
+  scale_fill_viridis_c(trans = "log10") +
     geom_smooth(method = "lm", se = TRUE, color = "red") +
   scale_x_log10(labels = label_dollar(scale_cut = cut_short_scale())) + 
   scale_y_log10(labels = label_dollar(scale_cut = cut_short_scale())) +
@@ -218,9 +221,9 @@ ggplot(PVA_tidy, aes(x = extot, y = fullval)) +
        caption = "Figure 3.")
 ```
 
-Figure 3. The scatterplot displays the relationship between the total amount of the property's assessed value that is not taxable and the full property market value. Evidently, there is a positive correlation as indicated by the regression line. Therefore, as property value increases, the exemption amount also increases. The diagonal cluster of points are likely 100% tax exempt properties because the exemption amount is approximately equal to the market value. The vertical cluster of points are properties with standardized exemption amounts.
+**Figure 3**. This 2D density plot visualizes the concentration of properties based on their total tax exemption and full market value. Unlike a standard scatterplot, this binned heatmap reveals the volume of data in high-density regions; the brighter yellow bins indicate a significantly higher concentration of properties compared to the darker purple areas. A clear positive correlation is visible, confirming that as property market values increase, the corresponding tax exemption amounts also rise. The high-intensity diagonal band represents a massive concentration of 100% tax-exempt properties, while the vertical concentration identifies a high volume of properties receiving standardized exemption amounts regardless of market value.
 
-Note: Due to the logarithmic scale, this plot only visualizes properties with a non-zero exemption total.
+Note: Due to the logarithmic scale, this plot only visualizes the subset of properties with a non-zero exemption total.
 
 ```{r}
 # Figure 4. Ridgeline Plot
@@ -238,32 +241,29 @@ PVA_tidy %>%
        caption = "Figure 4.")
 ```
 
-Figure 4. The ridge-line plot illustrates the association between tax programs and full property market values. The veterans category is clustered toward the bottom left, suggesting that veteran tax programs are associated with properties with the lower market values (likely residential homes). Meanwhile, federal and public authorities, peak towards the right, meaning they have higher valuations. Categories with longer tails reflect the diversity in property market value of those agencies.
+**Figure 4**. The ridgeline plot illustrates the association between tax programs and full property market values. The veterans category is clustered toward the bottom left, suggesting that veteran tax programs are associated with properties with the lower market values (likely residential homes). Meanwhile, federal and public authorities, peak towards the right, meaning they have higher valuations. Categories with longer tails reflect the diversity in the property market value of those agencies.
 
 ### Tax Classifications and Market Value
 
 ```{r}
-
 # Figure 5. Boxplot
 PVA_tidy %>%
-  
   ggplot(aes(x = fct_reorder(taxcl_code, fullval, .fun = median), 
-             y = fullval, 
-             fill = taxcl_code)) +
-  geom_boxplot(outlier.alpha = 0.1) + 
+             y = fullval, fill = taxcl_code)) +
+  geom_boxplot(outlier.alpha = 0.05) + 
   scale_y_log10(labels = label_dollar(scale_cut = cut_short_scale())) +
-  scale_fill_manual(values = c("steelblue", "firebrick", "goldenrod", "pink", "purple", 
-                               "lightgreen", "darkorange", "cyan", "orchid", "grey")) +
-  theme_minimal() +
-  coord_flip() +
-  labs(title = "Market Value Distribution by Tax Classification",
-       x = "Tax/Property Classification",
-       y = "Full Property Market Value (Log Scale)",
-       fill = "Tax/Property Classification",
+  theme_minimal() + 
+  theme(legend.position = "none") +
+  coord_flip(ylim = c(10000, 100000000)) + 
+  labs(title = "Focused Market Value Distribution",
+       y = "Market Value (Log Scale - Zoomed)",
+       x = "Tax Classification",
        caption = "Figure 5.")
 ```
 
-Figure 5. The boxplot indicates that condos and 7-10 unit residential properties have the highest median market value at around \$1M. Meanwhile, utility properties have the lowest median market value at around \$500K.
+**Figure 5**. The boxplot indicates that condos and 7-10 unit residential properties have the highest median market value at around \$1M. Meanwhile, utility properties have the lowest median market value at around \$500K.
+
+NOTE: To avoid the compression of boxplots due to outliers that force the IQR to appear as a flat line, this figure provides a "zoomed" view, focusing on the most relevant and common range (e.g., \$10K to \$100M). Overall, this allows for better interpretability of median differences.
 
 ```{r}
 # Figure 6. Ridgeline Plot
@@ -280,7 +280,7 @@ PVA_tidy %>%
        caption = "Figure 6.")
 ```
 
-Figure 6. The ridge-line plot reveals that the distribution for utility properties are multimodal with three distinct peaks and a wide spread. There are likely three major types of utility properties. Vacant Land (Residential) and Condos (in 1-3 unit buildings) are bimodal with 2 peaks, suggesting two leading types of land properties. Commercial & All Other properties has a weak peak and long tails, with a median market value around \$500-700k, highlighting that the distribution is influenced by outliers.
+**Figure 6**. The ridge-line plot reveals that the distribution for utility properties are multimodal with three distinct peaks and a wide spread. Thus, there are likely three major types of utility properties. Vacant Land (Residential) and Condos (in 1-3 unit buildings) are bimodal with 2 peaks, suggesting two leading types of land properties. Commercial & All Other properties have weak peaks with long tails, and a median market value around \$500-700k, highlighting that the distribution is influenced by outliers.
 
 ### Market Value and Tax Exemption by Borough
 
@@ -310,7 +310,7 @@ boro_stats %>%
        caption = "Figure 7.")
 ```
 
-Figure 7. The Cleveland Dot Plot confirms Manhattan properties have the greatest median market value, in comparison to all the other New York City boroughs. Meanwhile, Queens properties have the lowest median market value in comparison to all the other New York City boroughs.
+**Figure 7**. The Cleveland Dot Plot confirms Manhattan properties have the greatest median market value, in comparison to all the other New York City boroughs. Meanwhile, Queens properties have the lowest median market value in comparison to all the other New York City boroughs.
 
 ### Risk by Tax Classification and Borough
 
@@ -343,17 +343,18 @@ ggplot(PVA_ratio, aes(x = taxcl_code, y = assessment_ratio, fill = taxcl_code)) 
   facet_wrap(~boro_name) +
   geom_hline(yintercept = c(0.06, 0.45), linetype = "dashed", color = "red") +
   scale_y_continuous(labels = scales::label_percent()) +
+  coord_cartesian(ylim = c(0, 0.60)) + 
   theme_minimal() +
-  labs(title = "Assessment Ratio Distribution by Tax Classification and Borough",
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  labs(title = "Focused Assessment Ratio Distribution",
+       x = "Tax Classification",
        y = "Assessment Ratio (%)",
-       x = "Tax/Property Classification",
-       fill = "Tax/Property Classification",
+       fill = "Tax Classification",
        caption = "Figure 8.")
-
 
 ```
 
-Figure 8. This graph was generated using a calculated assessment ratio, or the portion of a property's market value (Market Value - `fullval`) that the city decides to tax (Assessed Total - `avtot`). The devised formula for the assessment ratio is $$avtot/fullval$$. It displays dashed lines at the 6% and 45% Assessment Ratio mark. These represent New York City's target assessment ratio for residential homes and all other properties, respectively. When the assessment ratio is lower than the target, or dashed line, there is a valuation gap, meaning that the property based on its market value is under-taxed. Across all boroughs, the assessment ratios for 1-3 unit residential properties are consistently below the 6% benchmark, suggesting a valuation gap. Additionally, for 4+ unit residential properties, the assessment ratios across all boroughs are consistently below the 45% benchmark, suggesting a valuation gap. It is evident there is model risk in the city's taxation of properties and their market value, which are under-assessed.
+**Figure 8**. This graph was generated using a calculated assessment ratio, or the portion of a property's market value (Market Value, represented by '`fullval`') that the city decides to tax (Assessed Total, represented by '`avtot`'). The devised formula is $$Assessment\ Ratio = \frac{avtot}{fullval}$$It displays dashed lines at the 6% and 45% Assessment Ratio mark. These represent New York City's target assessment ratio for residential homes and all other properties, respectively. When the assessment ratio is lower than the dashed line, there is a valuation gap, meaning that the property based on its market value is under-taxed. Across all boroughs, the assessment ratios for 1-3 unit residential properties are consistently below the 6% benchmark, suggesting a valuation gap. Additionally, for 4+ unit residential properties, the assessment ratios across all boroughs are consistently below the 45% benchmark, suggesting a valuation gap. It is evident there is model risk in the city's taxation of properties and their market value, which are under-assessed.
 
 ## Conclusion
 
@@ -363,7 +364,7 @@ This study found that tax exemption programs are associated with property market
 
 Secondly, the valuation gap is the greatest in 4-6 unit buildings, 7-10 unit buildings, and 2-10 unit co-ops or condos, as they consistently fail to meet the 45% assessment ratio benchmark. This is an indication that these building types tend to be under-taxed relative to their current market value.
 
-Nevertheless, some properties, particularly the Utility Proper are multimodal with high variability. Therefore, it is harder to create a model that will full capture the diversity of NYC's real estate and property portfolio.
+Nevertheless, some properties, particularly Utility properties are multimodal with high variability. Therefore, it is harder to create a model that will full capture the diversity of NYC's real estate and property portfolio.
 
 This study is limited by its stratified sampling, which only provided 50,000 observations. Additionally, due to the incompleteness in the data dictionary and code book, this project consulted with outside resources to supplement property and real estate knowledge. Nevertheless, the results still emphasize the need for greater transparency and model reforms for New York City's properties.
 
